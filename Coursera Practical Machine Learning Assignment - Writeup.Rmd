@@ -1,0 +1,98 @@
+---
+title: 'Coursera Practical Machine Learning Assignment: Writeup'
+author: "Avirup Nag"
+date: "January 30, 2016"
+output: html_document
+---
+
+### Assignment Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Data
+The training data is: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The testing data is: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+### Aim
+This report aims to use machine learning algoritmhs to predict the class of exercise the individuals was performing by using meaurements available from devices such as Jawbone Up, Nike FuelBand, and Fitbit.
+
+
+
+### Data Reading and Cleaning
+Two data set are available as a training set and a test set. The Test set consists of 20 individuals rows without any classification. Once downloaded into our working directory, the file is read to perform some basic exploratory data analysis. We observe that there are many blanks and NA values. We shall perform three actions: First, re-read the file to convert all the invalid entries (blanks, DIV/0, NA), to NA in R; Second, examine and remove the columns which contain NA's; and Third, remove the time and user columns which do not have any outcome on the class.
+
+```{r Data Reading and Cleaning}
+setwd("C:\\New folder\\Documents\\Coursera\\Machine Learning\\Week 4\\Assignments")
+pmlTrainData<-read.csv("pml-training.csv", header=T, na.strings=c("NA", "#DIV/0!"))
+pmlTestData<-read.csv("pml-testing.csv", header=T, na.string=c("NA", "#DIV/0!"))
+dim(pmlTrainData)
+dim(pmlTestData)
+noNApmlTrainData<-pmlTrainData[, apply(pmlTrainData, 2, function(x) !any(is.na(x)))]
+dim(noNApmlTrainData)
+noNApmlTestData<-pmlTestData[, apply(pmlTestData, 2, function(x) !any(is.na(x)))]
+dim(noNApmlTestData)
+```
+
+### Data Partitioning and Preprocessing
+
+Training data is partitioned and preprocessed as desribed in the code below. To summarise, all variables with at least one "NA" are excluded from the analysis. 51 Variables related to time and user information are excluded. Same variables are retained in the test data set (Validation dataset) to be used for predicting the 20 test cases provided.
+
+```{r Data Partitioning and Preprocessing}
+cleanpmlTrainData<-noNApmlTrainData[,-c(1:7)]
+dim(cleanpmlTrainData)
+cleanpmlTestData<-noNApmlTestData[,-c(1:7)]
+dim(cleanpmlTestData)
+```
+This leave us with 19622 observations and 53 predictors in the Training data set(one of which is the response variable)
+
+The final data sets will be cleanpmlTrainData and cleanpmlTestData. We shall continue with the training data set cleanpmlTrainData to perform Cross Validation and Prediction. And lastly using the prediction results on the training data set we do the Final Data Set Analysis and Predictions on the cleanpmlTestData to check the results.
+
+Continuing with the noNApmlTrainData ...
+
+
+### Calling Libraries
+To continue with the analysis we call the following necessary libraries:
+```{r Calling Libraries}
+library('randomForest')
+library('caret')
+library('e1071')
+```
+
+### Performing Cross Validation
+For cross validation, We split our testing data into sub groups, 3/4:1/4
+You can also embed plots, for example:
+```{r Performing Cross Validation}
+subGroupsData<-createDataPartition(y=cleanpmlTrainData$classe, p=3/4, list=FALSE)
+subTrainingData<-cleanpmlTrainData[subGroupsData,]
+subTestingData<-cleanpmlTrainData[-subGroupsData,]
+dim(subTrainingData)
+dim(subTestingData)
+```
+
+We see there are 14718 in the subTraining group, and 4904 in the subTesting group.
+
+### Performing Prediction
+
+The next step is to make a predictive model based on the random forest paradigm, as it is one of the best performing predicting model, using the subTrainingData group. Once the model is made, we predict the outcome of the other group, subTestingData, and examine the confusion matrix to see how well the predictive model performed
+
+```{r Performing Prediction}
+model<-randomForest(classe~., data=subTrainingData, method='class')
+prediction<-predict(model,subTestingData, type='class')
+subTestingData<-cleanpmlTrainData[-subGroupsData,]
+confusionMatrix(prediction,subTestingData$classe)
+```
+Based on the output above, We can get The accuracy which is > 99%. The out of sample error, that is the error rate on a new (subTestingData) data set is < 1%, with a 95% confidence interval(CI) is close to (0.991, 0.996).
+
+### Final Data Set Analysis and Predictions
+
+With a very accuracy we shall now try the prediction analysis on the 'pml-testing.csv', which is already loaded and cleaned into the 'cleanpmlTestData' set above.
+```{r Final Data Set Analysis and Predictions}
+Testprediction <- predict(model,cleanpmlTestData,type='class')
+save(Testprediction,file='Testprediction.RData')
+```
+The Final Prediction for the cleanpmlTestData is 
+```{r Final Prediction}
+load('Testprediction.RData')
+Testprediction
+```
+
